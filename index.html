@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f8ef">
+  <meta name="description" content="Помоги еноту Вене рассортировать пластик, бумагу и стекло на городской набережной. Интерактивная игра РОСТтех.">
+  <title>Всему своё место — игра с Веней · РОСТтех</title>
+  <link rel="stylesheet" href="assets/site.css">
+  <link rel="stylesheet" href="assets/guide.css">
+  <script src="assets/game.js" defer></script>
+  <script src="assets/help.js" defer></script>
+</head>
+<body id="game">
+  <a class="skip-link" href="#guide">К справочнику материалов</a>
+  <header class="masthead">
+    <div class="masthead__inner">
+      <a href="#game" class="brand" aria-label="РОСТтех, к началу игры">
+        <img src="assets/rosteh-transparent.png" width="324" height="142" alt="РОСТтех">
+      </a>
+      <nav class="navigation" aria-label="Навигация">
+        <a class="materials-link" href="#guide">О материалах <span aria-hidden="true">↘</span></a>
+        <button class="help-button" type="button" id="open-help" aria-label="Как играть" aria-haspopup="dialog">?</button>
+        <button class="add-button" type="button" id="new-game">
+          <span class="add-icon" aria-hidden="true"></span>
+          <span>Ещё мусора</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="game-title">
+      <div class="plaza">
+        <picture>
+          <source media="(max-aspect-ratio: 19/20) and (max-width: 1050px)" srcset="assets/plaza-venya-mobile.webp">
+          <img class="plaza__photo" src="assets/plaza-venya.webp" alt="Енот Веня на городской набережной показывает на три контейнера." fetchpriority="high">
+        </picture>
+        <div class="bin-dock" role="group" aria-label="Выбери бак для предмета">
+          <button type="button" data-bin="plastic" data-material="Пластик" aria-label="Синий бак — пластик"></button>
+          <button type="button" data-bin="paper" data-material="Бумага" aria-label="Жёлтый бак — бумага"></button>
+          <button type="button" data-bin="glass" data-material="Стекло" aria-label="Зелёный бак — стекло"></button>
+        </div>
+      </div>
+      <div class="hero-copy">
+        <p class="game-credit"><span class="recycle-sign" aria-hidden="true">♻</span> Сортировка с Веней</p>
+        <h1 id="game-title">Всему<br><em>своё место.</em></h1>
+        <p class="intro">Подними предмет с земли<br>и отправь в подходящий бак.</p>
+        <p class="tap-tip">Можно и двумя касаниями —<br>сначала предмет, затем бак.</p>
+        <p id="feedback" role="status" aria-atomic="true"></p>
+      </div>
+    </section>
+<section class="material-guide" id="guide" aria-labelledby="guide-title">
+  <div class="material-guide__inner">
+    <div class="material-guide__intro">
+      <h2 id="guide-title">У вещей бывает<br><em>вторая жизнь.</em></h2>
+      <p>Дома всё так же, как в игре. Посмотри, из чего сделана упаковка, и прочитай, что принимает твой контейнер.</p>
+    </div>
+    <div class="samples">
+      <article class="sample sample--plastic">
+        <div class="sample__picture" aria-hidden="true"></div>
+        <div class="sample__text">
+          <h3>Пластик</h3>
+          <p>Из ПЭТ-бутылки можно сделать волокно для флиса. Перед сдачей опустоши бутылку и сомни её.</p>
+        </div>
+      </article>
+      <article class="sample sample--paper">
+        <div class="sample__picture" aria-hidden="true"></div>
+        <div class="sample__text">
+          <h3>Бумага</h3>
+          <p>Старая коробка может стать новым картоном. Сложи её и храни в сухом месте до сдачи.</p>
+        </div>
+      </article>
+      <article class="sample sample--glass">
+        <div class="sample__picture" aria-hidden="true"></div>
+        <div class="sample__text">
+          <h3>Стекло</h3>
+          <p>Из стеклянной банки можно выплавить новую. Опустоши банку, сними крышку и сдай стекло отдельно.</p>
+        </div>
+      </article>
+    </div>
+    <p class="material-guide__note">Цвета баков в городе могут отличаться. Ориентируйся на надпись на контейнере.</p>
+  </div>
+</section>
+  </main>
+<footer class="site-colophon">
+  <div class="site-colophon__inner">
+    <a href="#game" aria-label="РОСТтех, к игре"><img class="site-colophon__brand" src="assets/rosteh-transparent.png" width="324" height="142" loading="lazy" alt="РОСТтех"></a>
+    <button class="site-colophon__action" id="reset-game" type="button"><span aria-hidden="true">+</span> Накинуть мусора</button>
+  </div>
+</footer>
+
+  <dialog id="how-to" aria-labelledby="how-title">
+    <form method="dialog">
+      <button class="close-help" aria-label="Закрыть" type="submit">×</button>
+      <h2 id="how-title">Как играть</h2>
+      <p>Перетащи предмет с земли в бак или коснись предмета, а затем нужного бака. Если ошибёшься, бак выплюнет предмет обратно.</p>
+      <ul class="materials-key">
+        <li><i class="blue"></i> Пластик</li>
+        <li><i class="yellow"></i> Бумага</li>
+        <li><i class="green"></i> Стекло</li>
+      </ul>
+      <p class="keyboard-tip">С клавиатуры выбирай предмет и бак клавишей Tab, подтверждай выбор клавишей Enter.</p>
+      <a href="#guide" id="help-guide">О материалах <span aria-hidden="true">↘</span></a>
+    </form>
+  </dialog>
+  <canvas id="physics-canvas" aria-hidden="true"></canvas>
+  <div id="object-controls" role="group" aria-label="Предметы для сортировки"></div>
+</body>
+</html>

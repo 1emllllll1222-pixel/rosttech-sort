@@ -1,0 +1,10 @@
+/dist/
+/.openai/
+
+# Working artwork kept alongside the optimized web assets.
+/assets/bins-v*.png
+/assets/city-v*.png
+/assets/rosteh-logo*.png
+/assets/sort-hero*.png
+/assets/venya-v*.png
+/assets/waste-v*.png

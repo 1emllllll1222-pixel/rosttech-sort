@@ -3,37 +3,109 @@
   const ctx = canvas.getContext("2d");
   const feedback = document.getElementById("feedback");
   const controls = document.getElementById("object-controls");
-  const wasteImage = new Image();
-  wasteImage.src = "assets/waste-v2.webp";
-  const moreWasteImage = new Image();
-  moreWasteImage.src = "assets/waste-v3.webp";
-  const extraWasteImage = new Image();
-  extraWasteImage.src = "assets/waste-v4.webp";
   const binsImage = new Image();
   binsImage.src = "assets/bins-v3.webp";
   const binButtons = [...document.querySelectorAll("[data-bin]")];
   const floorInsetProbe = document.getElementById("floor-inset") || controls;
 
+  // Entries follow the artwork in reading order: three columns by two rows.
+  function loadWasteSheet(name, entries, featured = false) {
+    const image = new Image();
+    image.src = "assets/" + name + ".webp";
+    return entries.map((entry, cell) => ({ ...entry, image, cell, featured }));
+  }
+
   const specs = [
-    { type: "bottle", kind: "plastic", label: "ПЭТ-бутылка", x: .19, y: .55, angle: -.36 },
-    { type: "pump", kind: "plastic", label: "Флакон", x: .34, y: .38, angle: .22 },
-    { type: "box", kind: "paper", label: "Коробка", x: .13, y: .70, angle: -.25 },
-    { type: "newspaper", kind: "paper", label: "Газета", x: .54, y: .32, angle: .18 },
-    { type: "jar", kind: "glass", label: "Банка", x: .88, y: .66, angle: .22 },
-    { type: "glassBottle", kind: "glass", label: "Бутылка", x: .10, y: .35, angle: -.2 },
-    { type: "cup", kind: "plastic", label: "Пластиковый стаканчик", angle: .15 },
-    { type: "tray", kind: "plastic", label: "Пластиковый контейнер", angle: -.15 },
-    { type: "carton", kind: "paper", label: "Картонная коробка", angle: .12 },
-    { type: "paperBall", kind: "paper", label: "Мятая бумага", angle: -.2 },
-    { type: "clearBottle", kind: "glass", label: "Стеклянная бутылка", angle: .2 },
-    { type: "greenJar", kind: "glass", label: "Стеклянная банка", angle: -.1 },
-    { type: "plasticBag", kind: "plastic", label: "Пластиковый пакет", angle: -.18 },
-    { type: "plasticFlask", kind: "plastic", label: "Пластиковый флакон", angle: .12 },
-    { type: "cardboardRoll", kind: "paper", label: "Картонный рулон", angle: .35 },
-    { type: "paperBag", kind: "paper", label: "Бумажный пакет", angle: -.12 },
-    { type: "brownBottle", kind: "glass", label: "Стеклянная бутылка", angle: .28 },
-    { type: "clearJar", kind: "glass", label: "Стеклянная банка", angle: -.15 },
+    ...loadWasteSheet("waste-v2", [
+      { type: "bottle", kind: "plastic", label: "ПЭТ-бутылка", angle: -.36 },
+      { type: "pump", kind: "plastic", label: "Флакон с дозатором", angle: .22 },
+      { type: "box", kind: "paper", label: "Коробка", radius: 28, angle: -.25 },
+      { type: "newspaper", kind: "paper", label: "Газета", radius: 28, angle: .18 },
+      { type: "glassBottle", kind: "glass", label: "Зелёная стеклянная бутылка", radius: 24, angle: -.2 },
+      { type: "jar", kind: "glass", label: "Банка", angle: .22 }
+    ]),
+    ...loadWasteSheet("waste-v3", [
+      { type: "cup", kind: "plastic", label: "Пластиковый стаканчик", radius: 23, angle: .15 },
+      { type: "tray", kind: "plastic", label: "Пластиковый контейнер", angle: -.15 },
+      { type: "carton", kind: "paper", label: "Картонная коробка", angle: .12 },
+      { type: "paperBall", kind: "paper", label: "Мятая бумага", angle: -.2 },
+      { type: "clearBottle", kind: "glass", label: "Прозрачная бутылка", angle: .2 },
+      { type: "greenJar", kind: "glass", label: "Зелёная банка", angle: -.1 }
+    ]),
+    ...loadWasteSheet("waste-v4", [
+      { type: "plasticBag", kind: "plastic", label: "Пластиковый пакет", angle: -.18 },
+      { type: "plasticFlask", kind: "plastic", label: "Пластиковый флакон", radius: 24, angle: .12 },
+      { type: "cardboardRoll", kind: "paper", label: "Картонный рулон", radius: 24, angle: .35 },
+      { type: "paperBag", kind: "paper", label: "Бумажный пакет", radius: 26, angle: -.12 },
+      { type: "brownBottle", kind: "glass", label: "Коричневая бутылка", radius: 24, angle: .28 },
+      { type: "clearJar", kind: "glass", label: "Прозрачная банка", radius: 24, angle: -.15 }
+    ]),
+    ...loadWasteSheet("waste-plastic", [
+      { type: "bottleCap", kind: "plastic", label: "Крышка от бутылки", radius: 20, angle: .12 },
+      { type: "jerrycan", kind: "plastic", label: "Пластиковая канистра", radius: 29, angle: -.19 },
+      { type: "plantPot", kind: "plastic", label: "Горшок для рассады", angle: .22 },
+      { type: "berryBasket", kind: "plastic", label: "Корзинка для ягод", angle: -.16 },
+      { type: "creamTub", kind: "plastic", label: "Баночка от крема", radius: 22, angle: .11 },
+      { type: "produceCrate", kind: "plastic", label: "Овощной ящик", radius: 29, angle: -.15 }
+    ], true),
+    ...loadWasteSheet("waste-paper", [
+      { type: "eggCarton", kind: "paper", label: "Картонный лоток для яиц", radius: 28, angle: -.18 },
+      { type: "envelope", kind: "paper", label: "Бумажный конверт", angle: .16 },
+      { type: "notebook", kind: "paper", label: "Тетрадь", radius: 26, angle: -.21 },
+      { type: "cupSleeve", kind: "paper", label: "Манжета от стакана", radius: 23, angle: .12 },
+      { type: "cerealBox", kind: "paper", label: "Коробка от хлопьев", radius: 28, angle: -.14 },
+      { type: "calendarPage", kind: "paper", label: "Лист календаря", radius: 22, angle: .18 }
+    ], true),
+    ...loadWasteSheet("waste-glass", [
+      { type: "oilBottle", kind: "glass", label: "Бутылка от оливкового масла", angle: -.24 },
+      { type: "milkBottle", kind: "glass", label: "Молочная бутылка", radius: 26, angle: .19 },
+      { type: "cosmeticBottle", kind: "glass", label: "Стеклянный флакон", radius: 22, angle: -.14 },
+      { type: "demijohn", kind: "glass", label: "Винная бутыль", radius: 28, angle: .21 },
+      { type: "honeyPot", kind: "glass", label: "Банка из-под мёда", radius: 24, angle: -.18 },
+      { type: "spiceJar", kind: "glass", label: "Баночка для специй", radius: 22, angle: .13 }
+    ], true)
   ];
+  const spriteSizeInRadii = 3.2;
+  // Convex outlines measured from the sprite alpha, in pixels around each 256px cell center.
+  const contactOutlines = {
+    bottle: [[78, -108], [85, -100], [79, -29], [45, 58], [-8, 117], [-39, 116], [-74, 103], [-87, 88], [-84, 45], [-32, -53], [42, -121]],
+    pump: [[29, -120], [43, -55], [36, 101], [25, 110], [-30, 112], [-44, 98], [-54, 34], [-54, -34], [-44, -84], [-30, -119]],
+    box: [[-61, -84], [69, -79], [117, -59], [121, -25], [111, 31], [69, 89], [-128, 59], [-122, 6]],
+    newspaper: [[121, -32], [22, 85], [7, 86], [-103, 47], [-120, 25], [-112, 3], [31, -79], [101, -62]],
+    glassBottle: [[4, -125], [15, -121], [36, -25], [37, 105], [26, 118], [-30, 117], [-37, 105], [-37, -23], [-16, -122]],
+    jar: [[39, -101], [59, -46], [55, 78], [41, 93], [18, 100], [-54, 95], [-74, 68], [-75, -49], [-61, -97], [-27, -106]],
+    cup: [[38, -93], [81, -63], [95, -41], [46, 83], [11, 98], [-31, 95], [-53, 76], [-90, -61], [3, -91]],
+    tray: [[116, -25], [120, 21], [86, 78], [-7, 98], [-36, 94], [-95, 61], [-124, -3], [-119, -23], [-89, -57], [34, -93], [63, -87]],
+    carton: [[-21, -120], [62, -104], [87, -45], [85, 82], [5, 118], [-64, 87], [-62, -37]],
+    paperBall: [[-7, -103], [54, -82], [96, -24], [96, 30], [62, 92], [-34, 99], [-96, 32], [-98, -14], [-58, -70]],
+    clearBottle: [[13, -128], [39, -31], [38, 100], [18, 115], [-32, 116], [-51, 109], [-57, 98], [-56, -35], [-35, -125]],
+    greenJar: [[65, -101], [84, -43], [83, 61], [76, 85], [57, 101], [25, 108], [-26, 107], [-60, 96], [-76, 65], [-77, -28], [-61, -98], [-10, -108]],
+    plasticBag: [[-48, -109], [-34, -114], [74, -100], [86, -86], [103, -37], [102, 56], [94, 94], [63, 108], [-69, 103], [-90, 95], [-100, 58], [-92, -7]],
+    plasticFlask: [[20, -111], [62, -16], [62, 96], [17, 109], [-54, 104], [-66, 54], [-57, -22], [-22, -108]],
+    cardboardRoll: [[93, -44], [103, -10], [85, 37], [-47, 81], [-91, 70], [-104, 18], [-90, -13], [62, -58], [79, -56]],
+    paperBag: [[85, -108], [95, -83], [102, 95], [-31, 114], [-90, 100], [-87, 28], [-60, -97]],
+    brownBottle: [[10, -124], [38, -25], [39, 106], [-10, 115], [-39, 107], [-39, -23], [-17, -121]],
+    clearJar: [[41, -102], [63, -47], [64, 73], [53, 101], [20, 111], [-36, 110], [-62, 102], [-70, 79], [-71, -44], [-57, -97], [-13, -107]],
+    bottleCap: [[76, -68], [101, 3], [95, 28], [78, 47], [41, 69], [-9, 82], [-50, 81], [-85, 63], [-102, -13], [-76, -51], [-33, -74], [7, -84], [46, -83]],
+    jerrycan: [[49, -99], [65, -79], [77, -36], [69, 75], [-2, 96], [-58, 96], [-76, 75], [-79, -18], [-60, -95]],
+    plantPot: [[87, -86], [96, -70], [54, 85], [7, 101], [-23, 100], [-56, 88], [-97, -65], [-91, -81], [-63, -94], [1, -102], [51, -98]],
+    berryBasket: [[25, -87], [90, -40], [101, -23], [68, 55], [-21, 86], [-79, 31], [-102, -47], [-85, -60]],
+    creamTub: [[89, -64], [101, -26], [99, 37], [77, 69], [29, 85], [-24, 86], [-69, 74], [-95, 52], [-101, -27], [-91, -60], [-77, -73], [-42, -85], [14, -89], [61, -81]],
+    produceCrate: [[101, -48], [98, 19], [-20, 79], [-38, 77], [-100, 32], [-97, -45], [16, -81]],
+    eggCarton: [[28, -101], [43, -90], [102, 37], [79, 66], [-30, 99], [-41, 94], [-78, 37], [-104, -52], [-81, -78]],
+    envelope: [[65, -77], [102, 23], [-69, 77], [-104, -28]],
+    notebook: [[36, -97], [102, 39], [101, 58], [-50, 95], [-104, -64], [-84, -74]],
+    cupSleeve: [[101, -67], [75, 57], [46, 71], [-5, 81], [-53, 79], [-77, 67], [-103, -37], [-95, -54], [-47, -73], [12, -82], [69, -80]],
+    cerealBox: [[63, -97], [87, -81], [60, 85], [-50, 103], [-71, 86], [-89, -74], [-60, -96], [28, -103]],
+    calendarPage: [[52, -104], [93, 47], [37, 85], [-62, 102], [-95, -79]],
+    oilBottle: [[8, -104], [28, -45], [26, 93], [-11, 103], [-30, 90], [-30, -45], [-14, -102]],
+    milkBottle: [[12, -104], [30, -94], [51, -16], [52, 68], [36, 95], [-14, 102], [-41, 93], [-52, 77], [-53, -13], [-31, -95], [-13, -104]],
+    cosmeticBottle: [[25, -100], [61, -47], [71, -17], [69, 90], [52, 98], [-55, 101], [-72, 65], [-71, -43], [-34, -98], [-12, -104]],
+    demijohn: [[12, -101], [71, -10], [79, 31], [70, 62], [51, 85], [25, 99], [-13, 102], [-42, 93], [-64, 74], [-77, 49], [-80, 20], [-71, -11], [-14, -100]],
+    honeyPot: [[44, -98], [57, -89], [85, -31], [82, 75], [42, 102], [-43, 102], [-85, 74], [-85, -34], [-46, -98], [-16, -104]],
+    spiceJar: [[9, -104], [35, -92], [51, 65], [35, 94], [-12, 102], [-42, 89], [-52, 67], [-34, -93], [-23, -101]]
+  };
+  const remainingByKind = new Map();
 
   const palette = {
     plastic: { main: "#68c8fa", shade: "#177dbe", highlight: "#eefbff" },
@@ -111,24 +183,7 @@
   }
 
   function makeBody(spec, index) {
-    const radiusByType = {
-      bottle: 25,
-      pump: 25,
-      cup: 23,
-      box: 28,
-      newspaper: 28,
-      sheet: 25,
-      jar: 25,
-      glassBottle: 24,
-      honeyJar: 25,
-      plasticBag: 25,
-      plasticFlask: 24,
-      cardboardRoll: 24,
-      paperBag: 26,
-      brownBottle: 24,
-      clearJar: 24
-    };
-    const r = (radiusByType[spec.type] || 25) * clamp(width / 980, .76, 1.16);
+    const r = (spec.radius || 25) * clamp(width / 980, .76, 1.16);
     return {
       ...spec,
       r,
@@ -145,6 +200,23 @@
     };
   }
 
+  function takeItems(kind, count) {
+    const batch = [];
+    let remaining = remainingByKind.get(kind);
+    while (batch.length < count) {
+      const firstPick = !remaining;
+      if (!remaining?.length) {
+        remaining = specs.filter(spec => spec.kind === kind);
+        remainingByKind.set(kind, remaining);
+      }
+      const candidates = remaining.filter(spec => !batch.includes(spec) && (!firstPick || spec.featured));
+      const item = candidates[Math.floor(Math.random() * candidates.length)];
+      remaining.splice(remaining.indexOf(item), 1);
+      batch.push(item);
+    }
+    return batch;
+  }
+
   function resetGame(add = false) {
     layoutBins();
     if (!add) {
@@ -152,18 +224,12 @@
       hoverBody = null;
       particles = [];
       bodies = [];
+      remainingByKind.clear();
       controls.replaceChildren();
     }
     const compact = width <= 600;
     const perKind = (compact ? 2 : 3) - (add ? 1 : 0);
-    const selectedSpecs = ["plastic", "paper", "glass"].flatMap(kind => {
-      const candidates = specs.filter(spec => spec.kind === kind);
-      for (let i = candidates.length - 1; i > 0; i -= 1) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
-      }
-      return candidates.slice(0, perKind);
-    });
+    const selectedSpecs = ["plastic", "paper", "glass"].flatMap(kind => takeItems(kind, perKind));
     const added = selectedSpecs.map(makeBody);
     bodies.push(...added);
     added.forEach(body => {
@@ -436,11 +502,13 @@
   }
 
   function supportRadius(body) {
-    const tall = ["bottle", "glassBottle", "pump", "cup", "newspaper", "sheet",
-      "plasticFlask", "cardboardRoll", "paperBag", "brownBottle", "clearJar"].includes(body.type);
-    const halfW = body.r * (tall ? .67 : 1.02);
-    const halfH = body.r * (tall ? 1.20 : 1.1);
-    return Math.abs(Math.sin(body.angle)) * halfW + Math.abs(Math.cos(body.angle)) * halfH;
+    const sin = Math.sin(body.angle);
+    const cos = Math.cos(body.angle);
+    let bottom = -Infinity;
+    for (const [x, y] of contactOutlines[body.type]) {
+      bottom = Math.max(bottom, x * sin + y * cos);
+    }
+    return bottom * (body.r * spriteSizeInRadii / 256);
   }
 
   function drawSky() {
@@ -617,7 +685,7 @@
     ctx.shadowColor = "#124e6c42";
     ctx.shadowBlur = 7;
     ctx.shadowOffsetY = 7;
-    drawObjectShape(body.type, body.r, colors);
+    drawObjectShape(body, colors);
     ctx.restore();
 
     if (!body.dragging && selected !== body && hoverBody !== body) return;
@@ -642,25 +710,13 @@
     ctx.restore();
   }
 
-  function drawObjectShape(type, r, colors) {
-    const extraIndex = {plasticBag: 0, plasticFlask: 1, cardboardRoll: 2, paperBag: 3, brownBottle: 4, clearJar: 5}[type];
-    if (extraIndex !== undefined && extraWasteImage.complete && extraWasteImage.naturalWidth) {
-      const cellWidth = extraWasteImage.naturalWidth / 3;
-      const cellHeight = extraWasteImage.naturalHeight / 2;
-      const col = extraIndex % 3, row = Math.floor(extraIndex / 3);
-      ctx.drawImage(extraWasteImage, col * cellWidth, row * cellHeight, cellWidth, cellHeight, -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
-      return;
-    }
-    const moreIndex = {cup: 0, tray: 1, carton: 2, paperBall: 3, clearBottle: 4, greenJar: 5}[type];
-    if (moreIndex !== undefined && moreWasteImage.complete && moreWasteImage.naturalWidth) {
-      const col = moreIndex % 3, row = Math.floor(moreIndex / 3);
-      ctx.drawImage(moreWasteImage, col * 512, row * 512, 512, 512, -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
-      return;
-    }
-    const spriteIndex = {bottle: 0, pump: 1, box: 2, newspaper: 3, glassBottle: 4, jar: 5}[type];
-    if (spriteIndex !== undefined && wasteImage.complete && wasteImage.naturalWidth) {
-      const col = spriteIndex % 3, row = Math.floor(spriteIndex / 3);
-      ctx.drawImage(wasteImage, col * 512, row * 512, 512, 512, -r * 1.6, -r * 1.6, r * 3.2, r * 3.2);
+  function drawObjectShape({ type, r, image, cell }, colors) {
+    if (image.complete && image.naturalWidth) {
+      const cellW = image.naturalWidth / 3;
+      const cellH = image.naturalHeight / 2;
+      const size = r * spriteSizeInRadii;
+      ctx.drawImage(image, (cell % 3) * cellW, Math.floor(cell / 3) * cellH, cellW, cellH,
+        -size / 2, -size / 2, size, size);
       return;
     }
     const scale = r / 26;
@@ -1022,7 +1078,8 @@
       requestDraw();
     }
   });
-  [wasteImage, moreWasteImage, extraWasteImage, binsImage].forEach(image => image.addEventListener("load", requestDraw));
+  const images = new Set([binsImage, ...specs.map(spec => spec.image)]);
+  images.forEach(image => image.addEventListener("load", requestDraw));
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(() => { binsNeedLayout = true; requestDraw(); });
     binButtons.forEach(button => observer.observe(button));

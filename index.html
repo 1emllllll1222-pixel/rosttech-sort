@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#f8f8ef">
   <meta name="description" content="Помоги еноту Вене рассортировать пластик, бумагу и стекло на городской набережной. Интерактивная игра РОСТтех.">
   <title>Всему своё место — игра с Веней · РОСТтех</title>
-  <link rel="stylesheet" href="assets/site.css">
+  <link rel="stylesheet" href="assets/site.css?v=3">
   <link rel="stylesheet" href="assets/guide.css">
-  <script src="assets/game.js?v=2" defer></script>
+  <script src="assets/game.js?v=3" defer></script>
   <script src="assets/help.js" defer></script>
 </head>
 <body id="game">
@@ -36,9 +36,9 @@
           <img class="plaza__photo" src="assets/plaza-venya.webp" alt="Енот Веня на городской набережной показывает на три контейнера." fetchpriority="high">
         </picture>
         <div class="bin-dock" role="group" aria-label="Выбери бак для предмета">
-          <button type="button" data-bin="plastic" data-material="Пластик" aria-label="Синий бак — пластик"></button>
-          <button type="button" data-bin="paper" data-material="Бумага" aria-label="Жёлтый бак — бумага"></button>
-          <button type="button" data-bin="glass" data-material="Стекло" aria-label="Зелёный бак — стекло"></button>
+          <button type="button" data-bin="plastic" data-material="Пластик" aria-label="Синий бак — пластик"><span class="bin-art" aria-hidden="true"></span></button>
+          <button type="button" data-bin="paper" data-material="Бумага" aria-label="Жёлтый бак — бумага"><span class="bin-art" aria-hidden="true"></span></button>
+          <button type="button" data-bin="glass" data-material="Стекло" aria-label="Зелёный бак — стекло"><span class="bin-art" aria-hidden="true"></span></button>
         </div>
       </div>
       <div class="hero-copy">

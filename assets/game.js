@@ -1,18 +1,19 @@
 (() => {
   const canvas = document.getElementById("physics-canvas");
   const ctx = canvas.getContext("2d");
+  const scene = document.querySelector(".hero");
+  const touchScene = matchMedia("(pointer: coarse) and (max-width: 1050px)");
   const feedback = document.getElementById("feedback");
   const controls = document.getElementById("object-controls");
-  const binsImage = new Image();
-  binsImage.src = "assets/bins-v3.webp";
   const binButtons = [...document.querySelectorAll("[data-bin]")];
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const floorInsetProbe = document.getElementById("floor-inset") || controls;
 
   // Entries follow the artwork in reading order: three columns by two rows.
-  function loadWasteSheet(name, entries, featured = false) {
+  function loadWasteSheet(name, entries) {
     const image = new Image();
     image.src = "assets/" + name + ".webp";
-    return entries.map((entry, cell) => ({ ...entry, image, cell, featured }));
+    return entries.map((entry, cell) => ({ ...entry, image, cell }));
   }
 
   const specs = [
@@ -43,19 +44,19 @@
     ...loadWasteSheet("waste-plastic", [
       { type: "bottleCap", kind: "plastic", label: "Крышка от бутылки", radius: 20, angle: .12 },
       { type: "jerrycan", kind: "plastic", label: "Пластиковая канистра", radius: 29, angle: -.19 },
-      { type: "plantPot", kind: "plastic", label: "Горшок для рассады", angle: .22 },
+      { type: "plantPot", kind: "plastic", label: "Пластиковый горшок", angle: .22 },
       { type: "berryBasket", kind: "plastic", label: "Корзинка для ягод", angle: -.16 },
-      { type: "creamTub", kind: "plastic", label: "Баночка от крема", radius: 22, angle: .11 },
+      { type: "creamTub", kind: "plastic", label: "Пластиковая баночка от крема", radius: 22, angle: .11 },
       { type: "produceCrate", kind: "plastic", label: "Овощной ящик", radius: 29, angle: -.15 }
-    ], true),
+    ]),
     ...loadWasteSheet("waste-paper", [
       { type: "eggCarton", kind: "paper", label: "Картонный лоток для яиц", radius: 28, angle: -.18 },
       { type: "envelope", kind: "paper", label: "Бумажный конверт", angle: .16 },
       { type: "notebook", kind: "paper", label: "Тетрадь", radius: 26, angle: -.21 },
-      { type: "cupSleeve", kind: "paper", label: "Манжета от стакана", radius: 23, angle: .12 },
+      { type: "cupSleeve", kind: "paper", label: "Картонная манжета от стакана", radius: 23, angle: .12 },
       { type: "cerealBox", kind: "paper", label: "Коробка от хлопьев", radius: 28, angle: -.14 },
       { type: "calendarPage", kind: "paper", label: "Лист календаря", radius: 22, angle: .18 }
-    ], true),
+    ]),
     ...loadWasteSheet("waste-glass", [
       { type: "oilBottle", kind: "glass", label: "Бутылка от оливкового масла", angle: -.24 },
       { type: "milkBottle", kind: "glass", label: "Молочная бутылка", radius: 26, angle: .19 },
@@ -63,7 +64,7 @@
       { type: "demijohn", kind: "glass", label: "Винная бутыль", radius: 28, angle: .21 },
       { type: "honeyPot", kind: "glass", label: "Банка из-под мёда", radius: 24, angle: -.18 },
       { type: "spiceJar", kind: "glass", label: "Баночка для специй", radius: 22, angle: .13 }
-    ], true)
+    ])
   ];
   const spriteSizeInRadii = 3.2;
   // Convex outlines measured from the sprite alpha, in pixels around each 256px cell center.
@@ -106,6 +107,8 @@
     spiceJar: [[9, -104], [35, -92], [51, 65], [35, 94], [-12, 102], [-42, 89], [-52, 67], [-34, -93], [-23, -101]]
   };
   const remainingByKind = new Map();
+  const previousByKind = new Map();
+  const materialTickets = [];
 
   const palette = {
     plastic: { main: "#68c8fa", shade: "#177dbe", highlight: "#eefbff" },
@@ -114,9 +117,9 @@
   };
 
   const binTheme = {
-    plastic: { label: "ПЛАСТИК", detail: "бутылки, флаконы", main: "#168edf", dark: "#0a64a9", light: "#48b9f4" },
-    paper: { label: "БУМАГА", detail: "картон, листы", main: "#f6b91f", dark: "#ba770b", light: "#ffdb62" },
-    glass: { label: "СТЕКЛО", detail: "банки, бутылки", main: "#24ad61", dark: "#147a42", light: "#6bd88f" }
+    plastic: { label: "пластик", light: "#48b9f4" },
+    paper: { label: "бумага", light: "#ffdb62" },
+    glass: { label: "стекло", light: "#6bd88f" }
   };
 
   let width = 0;
@@ -130,7 +133,7 @@
   let selected = null;
   let hoverBody = null;
   let lastFrame = 0;
-  let lastTime = performance.now();
+  let sceneViewport = null;
   let initialized = false;
   let frameId = null;
   let physicsAwake = true;
@@ -170,11 +173,11 @@
 
   function layoutBins() {
     binsNeedLayout = false;
+    const layer = canvas.getBoundingClientRect();
     bins = binButtons.map(el => {
       const r = el.getBoundingClientRect();
-      const previous = bins.find(bin => bin.kind === el.dataset.bin);
-      return { kind: el.dataset.bin, x: r.left, y: r.top,
-        w: r.width, h: r.height, shake: previous?.shake || 0, glow: previous?.glow || 0 };
+      return { kind: el.dataset.bin, button: el, x: r.left - layer.left,
+        y: r.top - layer.top, w: r.width, h: r.height };
     });
     bins.forEach((bin) => {
       bin.openingLeft = bin.x + bin.w * .20;
@@ -182,17 +185,18 @@
     });
   }
 
-  function makeBody(spec, index) {
+  function makeBody(spec, lane, dropHeight) {
     const r = (spec.radius || 25) * clamp(width / 980, .76, 1.16);
+    const margin = r * 1.6 + 8;
     return {
       ...spec,
       r,
-      x: width * (.12 + ((index * .145 + Math.random() * .08) % .76)),
-      y: -r * 2 - (index % 4) * 48,
-      vx: (index % 3 - 1) * 18,
+      x: margin + lane * (width - 2 * margin),
+      y: -r * 2 - dropHeight,
+      vx: (Math.random() - .5) * 72,
       vy: 0,
-      angle: spec.angle,
-      spin: (index % 2 ? 1 : -1) * .48,
+      angle: spec.angle + (Math.random() - .5) * .55,
+      spin: (Math.random() - .5) * 1.6,
       dragging: false,
       cooldown: 0,
       sortUntil: 0,
@@ -200,21 +204,26 @@
     };
   }
 
-  function takeItems(kind, count) {
-    const batch = [];
+  function randomIndex(list) {
+    return Math.floor(Math.random() * list.length);
+  }
+
+  function nextItem(batch) {
+    // Draw from six tickets across batches so portions vary and all materials recur.
+    if (!materialTickets.length) materialTickets.push("plastic", "plastic", "paper", "paper", "glass", "glass");
+    const [kind] = materialTickets.splice(randomIndex(materialTickets), 1);
     let remaining = remainingByKind.get(kind);
-    while (batch.length < count) {
-      const firstPick = !remaining;
-      if (!remaining?.length) {
-        remaining = specs.filter(spec => spec.kind === kind);
-        remainingByKind.set(kind, remaining);
-      }
-      const candidates = remaining.filter(spec => !batch.includes(spec) && (!firstPick || spec.featured));
-      const item = candidates[Math.floor(Math.random() * candidates.length)];
-      remaining.splice(remaining.indexOf(item), 1);
-      batch.push(item);
+    if (!remaining?.length) {
+      remaining = specs.filter(spec => spec.kind === kind);
+      remainingByKind.set(kind, remaining);
     }
-    return batch;
+    const candidates = remaining.filter(spec => previousByKind.get(kind) !== spec &&
+      !bodies.some(body => body.type === spec.type) && !batch.some(body => body.type === spec.type));
+    const pool = candidates.length ? candidates : remaining;
+    const item = pool[randomIndex(pool)];
+    remaining.splice(remaining.indexOf(item), 1);
+    previousByKind.set(kind, item);
+    return item;
   }
 
   function resetGame(add = false) {
@@ -225,12 +234,28 @@
       particles = [];
       bodies = [];
       remainingByKind.clear();
+      previousByKind.clear();
+      materialTickets.length = 0;
       controls.replaceChildren();
     }
-    const compact = width <= 600;
-    const perKind = (compact ? 2 : 3) - (add ? 1 : 0);
-    const selectedSpecs = ["plastic", "paper", "glass"].flatMap(kind => takeItems(kind, perKind));
-    const added = selectedSpecs.map(makeBody);
+    const compact = width <= 600 || (height <= 600 && matchMedia("(pointer: coarse)").matches);
+    const space = (compact ? 7 : 14) - bodies.length;
+    if (space <= 0) {
+      setFeedback("На земле тесно. Отправь пару предметов в бак, чтобы освободить место.");
+      return;
+    }
+
+    const min = add ? (compact ? 1 : 2) : (compact ? 3 : 5);
+    const max = add ? (compact ? 3 : 5) : (compact ? 4 : 7);
+    const count = Math.min(space, min + Math.floor(Math.random() * (max - min + 1)));
+    const lanes = Array.from({length: count}, (_, i) => (i + .15 + Math.random() * .7) / count);
+    let dropHeight = Math.random() * 24;
+    const added = [];
+    for (let i = 0; i < count; i++) {
+      const [lane] = lanes.splice(randomIndex(lanes), 1);
+      added.push(makeBody(nextItem(added), lane, dropHeight));
+      dropHeight += 25 + Math.random() * 78;
+    }
     bodies.push(...added);
     added.forEach(body => {
       const handle = document.createElement("button");
@@ -274,14 +299,35 @@
     selected = null;
   }
 
+  function sizeScene() {
+    if (!touchScene.matches) {
+      scene.style.removeProperty("--scene-height");
+      sceneViewport = null;
+      return;
+    }
+    const w = document.documentElement.clientWidth;
+    const h = window.innerHeight;
+    // Browser bars change height during a swipe. Reframe only for a new layout.
+    if (sceneViewport && sceneViewport.w === w && (h >= w) === (sceneViewport.h >= w) &&
+        Math.abs(h - sceneViewport.h) < Math.max(160, sceneViewport.h * .25)) return;
+    scene.style.removeProperty("--scene-height");
+    scene.style.setProperty("--scene-height", scene.getBoundingClientRect().height + "px");
+    sceneViewport = { w, h };
+  }
+
   function resizeCanvas() {
+    sizeScene();
+    binsNeedLayout = true;
     const oldWidth = width;
     const oldHeight = height;
     const oldFloorY = floorY;
-    width = document.documentElement.clientWidth;
-    height = window.innerHeight;
-    canvas.style.height = height + "px";
-    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextDpr = Math.min(2, window.devicePixelRatio || 1);
+    const nextWidth = canvas.clientWidth;
+    const nextHeight = canvas.clientHeight;
+    if (initialized && width === nextWidth && height === nextHeight && dpr === nextDpr) return;
+    width = nextWidth;
+    height = nextHeight;
+    dpr = nextDpr;
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -289,14 +335,23 @@
     const inset = parseFloat(insetStyle.paddingBottom) || parseFloat(insetStyle.marginBottom) ||
       parseFloat(insetStyle.getPropertyValue("--floor-inset")) || 16;
     floorY = height - inset;
-    layoutBins();
-
     if (!initialized) {
       initialized = true;
       resetGame();
       return;
     }
 
+    // A bottom-anchored pile keeps its shape when only the available height changes.
+    if (width === oldWidth) {
+      const dy = floorY - oldFloorY;
+      bodies.forEach(body => {
+        body.y += dy;
+        if (Number.isFinite(body.sampleY)) body.sampleY += dy;
+      });
+      particles.forEach(particle => { particle.y += dy; });
+      requestDraw();
+      return;
+    }
     const sx = oldWidth ? width / oldWidth : 1;
     const sy = oldHeight ? height / oldHeight : 1;
     bodies.forEach((body) => {
@@ -370,9 +425,9 @@
     body.vy = -Math.max(540, Math.abs(body.vy) + 440);
     body.vx += (body.x < bin.x + bin.w / 2 ? -1 : 1) * (190 + Math.random() * 120);
     body.spin += (Math.random() - .5) * 5;
-    bin.shake = 1;
-    burst(bin.x + bin.w / 2, bin.y + 12, ["#fff1ea", "#ff765e", "#f6bd2c"], .55);
-    setFeedback("Ой, обратно! Поищи бак с надписью «" + binTheme[body.kind].label.toLowerCase() + "».");
+    reactBin(bin, false);
+    if (!reducedMotion.matches) burst(bin.x + bin.w / 2, bin.y + 12, ["#fff1ea", "#ff765e", "#f6bd2c"], .55);
+    setFeedback("Ой, обратно! Поищи бак с надписью «" + binTheme[body.kind].label + "».");
   }
 
   function absorb(body, bin) {
@@ -380,8 +435,8 @@
     body.handle.remove();
     if (selected === body) clearSelection();
     if (hoverBody === body) hoverBody = null;
-    bin.glow = 1;
-    burst(bin.x + bin.w / 2, bin.y + 18, [binTheme[bin.kind].light, "#ffffff", "#9edc75"], 1);
+    reactBin(bin, true);
+    if (!reducedMotion.matches) burst(bin.x + bin.w / 2, bin.y + 18, [binTheme[bin.kind].light, "#ffffff", "#9edc75"], 1);
     bodies = bodies.filter((current) => current !== body);
     setFeedback(bodies.length ? "В точку! " + itemName + " отправляется на переработку." :
       "Всё по местам! Хочешь ещё? Нажми «Накинуть мусора».");
@@ -495,10 +550,6 @@
       return particle.life > 0;
     });
 
-    bins.forEach((bin) => {
-      bin.shake = Math.max(0, bin.shake - dt * 2.8);
-      bin.glow = Math.max(0, bin.glow - dt * 1.5);
-    });
   }
 
   function supportRadius(body) {
@@ -576,105 +627,20 @@
     ctx.restore();
   }
 
-  function drawBin(bin) {
-    const theme = binTheme[bin.kind];
-    const jitter = Math.sin(lastTime * .05 + bin.x) * 4 * bin.shake;
-    const x = bin.x + jitter;
-    const y = bin.y;
-    if (binsImage.complete && binsImage.naturalWidth) {
-      const index = {plastic: 0, paper: 1, glass: 2}[bin.kind];
-      ctx.save();
-      // Trim the transparent gutters so the visual bin and its touch target coincide.
-      const sourceX = index * 724 + [75, 81, 88][index];
-      ctx.drawImage(binsImage, sourceX, 8, 560, 707, x, y, bin.w, bin.h);
-      ctx.restore();
-      if (bin.shake > .12) {
-        ctx.save(); ctx.globalAlpha = bin.shake; ctx.textAlign = "center";
-        ctx.font = "bold 15px Arial"; ctx.fillStyle = "#073f5f";
-        ctx.fillText("НЕ МОЁ!", x + bin.w / 2, y - 8); ctx.restore();
-      }
-      return;
+  function reactBin(bin, accepted) {
+    const art = bin.button.querySelector(".bin-art");
+    art.getAnimations().forEach(animation => animation.cancel());
+    bin.button.dataset.reaction = accepted ? "Верно!" : "Не моё!";
+
+    const glow = "brightness(1.13) drop-shadow(0 0 5px " + binTheme[bin.kind].light + ")";
+    let frames = [];
+    if (!reducedMotion.matches) {
+      frames = accepted
+        ? [{ filter: "none" }, { filter: glow, offset: .3 }, { filter: "none" }]
+        : [0, -3, 3, -2, 0].map(x => ({ transform: "translateX(" + x + "px)" }));
     }
-
-    ctx.save();
-    ctx.translate(x, y);
-
-    if (bin.glow > 0) {
-      ctx.shadowColor = "#92e550";
-      ctx.shadowBlur = 26 * bin.glow;
-    } else {
-      ctx.shadowColor = "#16516d36";
-      ctx.shadowBlur = 16;
-      ctx.shadowOffsetY = 10;
-    }
-
-    const bodyGradient = ctx.createLinearGradient(0, 0, bin.w, 0);
-    bodyGradient.addColorStop(0, theme.dark);
-    bodyGradient.addColorStop(.18, theme.main);
-    bodyGradient.addColorStop(.72, theme.main);
-    bodyGradient.addColorStop(1, theme.dark);
-    roundedRect(ctx, bin.w * .04, 22, bin.w * .92, bin.h - 22, 13);
-    ctx.fillStyle = bodyGradient;
-    ctx.fill();
-    ctx.shadowColor = "transparent";
-
-    ctx.fillStyle = "#0a3f5a4a";
-    roundedRect(ctx, bin.w * .04, bin.h - 17, bin.w * .92, 17, 10);
-    ctx.fill();
-
-    const lidGradient = ctx.createLinearGradient(0, 0, 0, 35);
-    lidGradient.addColorStop(0, "#ffffff95");
-    lidGradient.addColorStop(.26, theme.light);
-    lidGradient.addColorStop(.55, theme.main);
-    lidGradient.addColorStop(1, theme.dark);
-    roundedRect(ctx, -bin.w * .035, 0, bin.w * 1.07, 33, 12);
-    ctx.fillStyle = lidGradient;
-    ctx.fill();
-
-    roundedRect(ctx, bin.w * .19, 9, bin.w * .62, 9, 8);
-    ctx.fillStyle = "#073f5fe0";
-    ctx.fill();
-    ctx.fillStyle = "#00000032";
-    roundedRect(ctx, bin.w * .22, 11, bin.w * .56, 4, 4);
-    ctx.fill();
-
-    ctx.strokeStyle = "#ffffff8c";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(bin.w * .50, bin.h - 47, bin.w * .35, 11, -.17, Math.PI, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(bin.w / 2, 78, 28, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = "#fff";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = "500 42px Arial";
-    ctx.fillText("↻", bin.w / 2, 77);
-
-    ctx.font = "900 " + clamp(bin.w * .12, 12, 18) + "px Arial";
-    ctx.fillText(theme.label, bin.w / 2, 119);
-    ctx.font = "700 " + clamp(bin.w * .077, 9, 12) + "px Arial";
-    const detail = theme.detail.split(", ");
-    ctx.fillText(detail[0], bin.w / 2, 139);
-    ctx.fillText(detail[1], bin.w / 2, 154);
-
-    ctx.fillStyle = "#ffffffd9";
-    ctx.font = "800 10px Arial";
-    ctx.restore();
-
-    if (bin.shake > .12) {
-      ctx.save();
-      ctx.globalAlpha = bin.shake;
-      ctx.fillStyle = "#fff";
-      ctx.font = "900 13px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText("НЕ МОЁ!", x + bin.w / 2, y - 13);
-      ctx.restore();
-    }
+    const animation = art.animate(frames, { duration: accepted ? 500 : 410, easing: "ease-out" });
+    animation.onfinish = () => { delete bin.button.dataset.reaction; };
   }
 
   function drawBody(body) {
@@ -879,7 +845,6 @@
 
   function draw() {
     ctx.clearRect(0, 0, width, height);
-    bins.forEach(drawBin);
     bodies.filter((body) => body !== active?.body).forEach(drawBody);
     if (active?.body) drawBody(active.body);
     drawParticles();
@@ -896,8 +861,7 @@
     frameId = null;
     const dt = Math.min(.04, Math.max(0, lastFrame ? (time - lastFrame) / 1000 : .016));
     lastFrame = time;
-    lastTime = time;
-    if (binsNeedLayout) layoutBins();
+    if (binsNeedLayout && bodies.some(body => body.sortUntil > time)) layoutBins();
     if (physicsAwake) {
       const steps = Math.ceil(dt / .008);
       for (let step = 0; step < steps; step++) updatePhysics(dt / steps, time);
@@ -925,7 +889,7 @@
     }
     updateEffects(dt);
     draw();
-    if (physicsAwake || particles.length || bins.some(bin => bin.shake || bin.glow)) requestDraw();
+    if (physicsAwake || particles.length) requestDraw();
     else lastFrame = 0;
   }
 
@@ -1065,7 +1029,10 @@
     document.getElementById("new-game").focus({preventScroll: true});
   });
   window.addEventListener("resize", resizeCanvas);
-  window.addEventListener("scroll", () => { binsNeedLayout = true; requestDraw(); }, {passive: true});
+  const invalidateBinPositions = () => { binsNeedLayout = true; };
+  window.addEventListener("scroll", invalidateBinPositions, {passive: true});
+  window.visualViewport?.addEventListener("resize", invalidateBinPositions, {passive: true});
+  window.visualViewport?.addEventListener("scroll", invalidateBinPositions, {passive: true});
   window.addEventListener("blur", () => cancelDrag());
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
@@ -1078,13 +1045,13 @@
       requestDraw();
     }
   });
-  const images = new Set([binsImage, ...specs.map(spec => spec.image)]);
+  const images = new Set(specs.map(spec => spec.image));
   images.forEach(image => image.addEventListener("load", requestDraw));
   if (window.ResizeObserver) {
-    const observer = new ResizeObserver(() => { binsNeedLayout = true; requestDraw(); });
+    const observer = new ResizeObserver(invalidateBinPositions);
     binButtons.forEach(button => observer.observe(button));
   }
-  document.fonts?.ready.then(() => { binsNeedLayout = true; requestDraw(); });
+  document.fonts?.ready.then(invalidateBinPositions);
 
   resizeCanvas();
 })();
